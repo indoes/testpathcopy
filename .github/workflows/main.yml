@@ -19,6 +19,38 @@ jobs:
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce # v2.0.0
 
+    # Note: the following two steps are required to be able to do ATL builds on the new windows-2022+ runners.
+    # The code has been copied from https://github.com/actions/runner-images/issues/9701.
+    # It's not ideal as it adds quite a bit of time to the builds, so it might be interesting to find a
+    # workaround at some point in the future.
+    - name: Delete components
+      run: |
+        Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
+        $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+        $componentsToRemove= @(
+          "Microsoft.VisualStudio.Component.VC.ATL.ARM"
+          "Microsoft.VisualStudio.Component.VC.ATL.ARM.Spectre"
+        )
+        [string]$workloadArgs = $componentsToRemove | ForEach-Object {" --remove " +  $_}
+        $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
+        # should be run twice
+        $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
+        $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
+      
+    - name: Install components
+      run: |
+       Set-Location "C:\Program Files (x86)\Microsoft Visual Studio\Installer\"
+       $InstallPath = "C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
+       $componentsToAdd= @(
+         "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM"
+         "Microsoft.VisualStudio.Component.VC.14.39.17.9.ATL.ARM.Spectre"
+       )
+       [string]$workloadArgs = $componentsToAdd | ForEach-Object {" --add " +  $_}
+       $Arguments = ('/c', "vs_installer.exe", 'modify', '--installPath', "`"$InstallPath`"",$workloadArgs, '--quiet', '--norestart', '--nocache')
+       # should be run twice
+       $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
+       $process = Start-Process -FilePath cmd.exe -ArgumentList $Arguments -Wait -PassThru -WindowStyle Hidden
+
     - name: Cache NuGet packages
       uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # v5.0.1
       with:
